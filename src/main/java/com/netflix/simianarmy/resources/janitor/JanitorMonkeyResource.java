@@ -22,6 +22,7 @@ import com.netflix.simianarmy.MonkeyRunner;
 import com.netflix.simianarmy.janitor.JanitorMonkey;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.JsonEncoding;
+import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.MappingJsonFactory;
@@ -101,14 +102,7 @@ public class JanitorMonkeyResource {
             gen.writeStringField("eventType", eventType);
             gen.writeStringField("resourceId", resourceId);
 
-        	if (eventType.equals("OPTIN")) {
-                responseStatus = optInResource(resourceId, true, region, gen);
-            } else if (eventType.equals("OPTOUT")) {
-                responseStatus = optInResource(resourceId, false, region, gen);
-            } else {
-                responseStatus = Response.Status.BAD_REQUEST;
-                gen.writeStringField("message", String.format("Unrecognized event type: %s", eventType));
-            }
+        	responseStatus = handleEvent(eventType, resourceId, region, gen);
             gen.writeEndObject();
             gen.close();
 
@@ -125,6 +119,20 @@ public class JanitorMonkeyResource {
     	baos.write("</body></html>".getBytes());
         return Response.status(responseStatus).entity(baos.toString("UTF-8")).build();
     }
+
+	private Response.Status handleEvent(String eventType, String resourceId, String region, JsonGenerator gen)
+			throws IOException, JsonGenerationException {
+		Response.Status responseStatus;
+		if (eventType.equals("OPTIN")) {
+		    responseStatus = optInResource(resourceId, true, region, gen);
+		} else if (eventType.equals("OPTOUT")) {
+		    responseStatus = optInResource(resourceId, false, region, gen);
+		} else {
+		    responseStatus = Response.Status.BAD_REQUEST;
+		    gen.writeStringField("message", String.format("Unrecognized event type: %s", eventType));
+		}
+		return responseStatus;
+	}
 
     /**
      * POST /api/v1/janitor will try a add a new event with the information in the url context.
@@ -155,14 +163,7 @@ public class JanitorMonkeyResource {
             responseStatus = Response.Status.BAD_REQUEST;
             gen.writeStringField("message", "eventType and resourceId parameters are all required");
         } else {
-            if (eventType.equals("OPTIN")) {
-                responseStatus = optInResource(resourceId, true, region, gen);
-            } else if (eventType.equals("OPTOUT")) {
-                responseStatus = optInResource(resourceId, false, region, gen);
-            } else {
-                responseStatus = Response.Status.BAD_REQUEST;
-                gen.writeStringField("message", String.format("Unrecognized event type: %s", eventType));
-            }
+            responseStatus = handleEvent(eventType, resourceId, region, gen);
         }
         gen.writeEndObject();
         gen.close();
